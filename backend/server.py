@@ -531,19 +531,60 @@ async def get_all_users(current_user: User = Depends(get_current_user)):
     return users
 
 @api_router.put("/admin/users/{user_id}")
-async def update_user(user_id: str, update_data: dict, current_user: User = Depends(get_current_user)):
+async def update_user(user_id: str, update_data: UserUpdate, current_user: User = Depends(get_current_user)):
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Remove sensitive fields that shouldn't be updated via admin
-    safe_update = {k: v for k, v in update_data.items() if k not in ['password', 'id']}
-    safe_update['updated_at'] = datetime.utcnow()
+    # Build update dictionary from provided fields
+    update_fields = {}
     
-    result = await db.users.update_one({"id": user_id}, {"$set": safe_update})
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
+    if update_data.name is not None:
+        update_fields["name"] = update_data.name
+    if update_data.email is not None:
+        # Check if email is already taken
+        existing_user = await db.users.find_one({"email": update_data.email, "id": {"$ne": user_id}})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        update_fields["email"] = update_data.email
+    if update_data.phone is not None:
+        update_fields["phone"] = update_data.phone
+    if update_data.location is not None:
+        update_fields["location"] = update_data.location
+    if update_data.dealer_tier is not None:
+        update_fields["dealer_tier"] = update_data.dealer_tier
+    if update_data.dealer_license is not None:
+        update_fields["dealer_license"] = update_data.dealer_license
+        # If admin changes license, it's automatically verified
+        update_fields["license_verified"] = True
+    if update_data.is_verified is not None:
+        update_fields["is_verified"] = update_data.is_verified
+    if update_data.is_active is not None:
+        update_fields["is_active"] = update_data.is_active
+    
+    if update_fields:
+        update_fields["updated_at"] = datetime.utcnow()
+        
+        result = await db.users.update_one({"id": user_id}, {"$set": update_fields})
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
     
     return {"message": "User updated successfully"}
+
+# Admin License Verification
+@api_router.put("/admin/verify-license/{user_id}")
+async def verify_dealer_license(user_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.users.update_one(
+        {"id": user_id, "role": "dealer"},
+        {"$set": {"license_verified": True, "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Dealer not found")
+    
+    return {"message": "Dealer license verified successfully"}
 
 @api_router.delete("/admin/users/{user_id}")
 async def delete_user(user_id: str, current_user: User = Depends(get_current_user)):
