@@ -445,6 +445,17 @@ async def get_all_users(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     users = await db.users.find({}, {"password": 0}).to_list(1000)  # Exclude passwords
+    
+    # Convert ObjectId to string and clean up data
+    for user in users:
+        if "_id" in user:
+            user["_id"] = str(user["_id"])
+        # Ensure all datetime fields are properly formatted
+        if "created_at" in user and user["created_at"]:
+            user["created_at"] = user["created_at"].isoformat()
+        if "updated_at" in user and user["updated_at"]:
+            user["updated_at"] = user["updated_at"].isoformat()
+    
     return users
 
 @api_router.put("/admin/users/{user_id}")
