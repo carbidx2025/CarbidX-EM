@@ -274,7 +274,7 @@ async def create_car_request(request_data: CarRequestCreate, current_user: User 
     await manager.broadcast_to_auction(
         json.dumps({
             "type": "new_auction",
-            "auction": car_request.dict()
+            "auction": {k: v.isoformat() if isinstance(v, datetime) else v for k, v in car_request.dict().items()}
         }),
         car_request.id
     )
