@@ -109,7 +109,10 @@ class User(BaseModel):
     dealer_tier: Optional[DealerTier] = None
     phone: Optional[str] = None
     location: Optional[str] = None
+    dealer_license: Optional[str] = None
+    license_verified: bool = True  # New dealers start as verified, becomes False when license is changed
     is_verified: bool = False
+    is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -121,6 +124,17 @@ class UserRegister(BaseModel):
     dealer_tier: Optional[DealerTier] = None
     phone: Optional[str] = None
     location: Optional[str] = None
+    dealer_license: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    dealer_tier: Optional[DealerTier] = None
+    dealer_license: Optional[str] = None
+    is_verified: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 class UserLogin(BaseModel):
     email: str
