@@ -318,6 +318,14 @@ async def create_bid(bid_data: BidCreate, current_user: User = Depends(get_curre
     if current_user.role != UserRole.DEALER:
         raise HTTPException(status_code=403, detail="Only dealers can place bids")
     
+    # Check if dealer license is verified
+    if not current_user.license_verified:
+        raise HTTPException(status_code=403, detail="Your dealer license needs verification before you can place bids")
+    
+    # Check if dealer account is active
+    if not current_user.is_active:
+        raise HTTPException(status_code=403, detail="Your account is not active")
+    
     # Check if auction exists and is active
     auction = await db.car_requests.find_one({"id": bid_data.auction_id})
     if not auction:
@@ -345,8 +353,7 @@ async def create_bid(bid_data: BidCreate, current_user: User = Depends(get_curre
         dealer_name=current_user.name,
         dealer_tier=current_user.dealer_tier,
         price=bid_data.price,
-        message=bid_data.message,
-        status=BidStatus.WINNING  # Set initial status to winning
+        message=bid_data.message
     )
     
     await db.bids.insert_one(bid.dict())
@@ -366,7 +373,7 @@ async def create_bid(bid_data: BidCreate, current_user: User = Depends(get_curre
     await manager.broadcast_to_auction(
         json.dumps({
             "type": "new_bid",
-            "bid": {k: v.isoformat() if isinstance(v, datetime) else v for k, v in bid.dict().items()},
+            "bid": bid.dict(),
             "auction_id": bid_data.auction_id
         }),
         bid_data.auction_id
