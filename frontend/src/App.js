@@ -777,21 +777,98 @@ const DealerDashboard = ({ activeSection }) => {
 
 // Admin Dashboard Component
 const AdminDashboard = ({ activeSection }) => {
-  const adminStats = {
-    totalUsers: 1247,
-    totalAuctions: 156,
-    activeAuctions: 23,
-    totalBids: 892,
-    totalRevenue: 125000
+  const [adminStats, setAdminStats] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [allAuctions, setAllAuctions] = useState([]);
+  const [allBids, setAllBids] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+
+  useEffect(() => {
+    fetchAdminData();
+  }, [activeSection]);
+
+  const fetchAdminData = async () => {
+    setLoading(true);
+    try {
+      // Fetch stats
+      const statsRes = await axios.get(`${API}/dashboard/stats`);
+      setAdminStats(statsRes.data);
+
+      // Fetch data based on active section
+      switch (activeSection) {
+        case 'all-users':
+          const usersRes = await axios.get(`${API}/admin/users`);
+          setAllUsers(usersRes.data);
+          break;
+        case 'all-auctions':
+          const auctionsRes = await axios.get(`${API}/admin/auctions`);
+          setAllAuctions(auctionsRes.data);
+          break;
+        case 'all-bids':
+          const bidsRes = await axios.get(`${API}/admin/bids`);
+          setAllBids(bidsRes.data);
+          break;
+        case 'analytics':
+          const analyticsRes = await axios.get(`${API}/admin/analytics`);
+          setAnalytics(analyticsRes.data);
+          break;
+        case 'system':
+          const healthRes = await axios.get(`${API}/admin/system/health`);
+          setSystemHealth(healthRes.data);
+          break;
+      }
+    } catch (error) {
+      console.error('Error fetching admin data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const allAuctions = [
-    { id: 1, title: 'Mercedes-Benz C-Class AMG', buyer: 'John Doe', currentBid: 49000, bids: 15, status: 'Active' },
-    { id: 2, title: 'BMW X5 M Competition', buyer: 'Jane Smith', currentBid: 87500, bids: 28, status: 'Active' },
-    { id: 3, title: 'Audi A4 Quattro', buyer: 'Mike Johnson', currentBid: 60000, bids: 22, status: 'Active' },
-  ];
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await axios.delete(`${API}/admin/users/${userId}`);
+        setAllUsers(allUsers.filter(user => user.id !== userId));
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user');
+      }
+    }
+  };
+
+  const handleUpdateAuctionStatus = async (auctionId, newStatus) => {
+    try {
+      await axios.put(`${API}/admin/auctions/${auctionId}/status`, { status: newStatus });
+      // Refresh auctions
+      const auctionsRes = await axios.get(`${API}/admin/auctions`);
+      setAllAuctions(auctionsRes.data);
+    } catch (error) {
+      console.error('Error updating auction status:', error);
+      alert('Failed to update auction status');
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString() + ' ' + new Date(dateString).toLocaleTimeString();
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  };
 
   const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+        </div>
+      );
+    }
+
     switch (activeSection) {
       case 'dashboard':
         return (
@@ -801,52 +878,167 @@ const AdminDashboard = ({ activeSection }) => {
               <p className="text-lg">Monitor and manage the entire CarBidX platform</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Users</p>
-                    <p className="text-2xl font-bold text-blue-600">{adminStats.totalUsers}</p>
+            {adminStats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Users</p>
+                      <p className="text-2xl font-bold text-blue-600">{adminStats.total_users}</p>
+                      <p className="text-xs text-gray-500">Buyers: {adminStats.total_buyers} | Dealers: {adminStats.total_dealers}</p>
+                    </div>
+                    <UsersIcon className="h-8 w-8 text-blue-600" />
                   </div>
-                  <UsersIcon className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Auctions</p>
+                      <p className="text-2xl font-bold text-green-600">{adminStats.total_auctions}</p>
+                      <p className="text-xs text-gray-500">Active: {adminStats.active_auctions}</p>
+                    </div>
+                    <Gavel className="h-8 w-8 text-green-600" />
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Bids</p>
+                      <p className="text-2xl font-bold text-purple-600">{adminStats.total_bids}</p>
+                    </div>
+                    <BidIcon className="h-8 w-8 text-purple-600" />
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Monthly Revenue</p>
+                      <p className="text-2xl font-bold text-green-600">{formatCurrency(adminStats.monthly_revenue)}</p>
+                      <p className="text-xs text-gray-500">Subscriptions</p>
+                    </div>
+                    <DollarSign className="h-8 w-8 text-green-600" />
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Revenue</p>
+                      <p className="text-2xl font-bold text-orange-600">{formatCurrency(adminStats.total_revenue)}</p>
+                      <p className="text-xs text-gray-500">All sources</p>
+                    </div>
+                    <BarChart3 className="h-8 w-8 text-orange-600" />
+                  </div>
                 </div>
               </div>
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Auctions</p>
-                    <p className="text-2xl font-bold text-green-600">{adminStats.totalAuctions}</p>
-                  </div>
-                  <Gavel className="h-8 w-8 text-green-600" />
-                </div>
+            )}
+
+            {/* Quick Actions */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-center">
+                  <UsersIcon className="h-6 w-6 mx-auto mb-2 text-blue-600" />
+                  <span className="text-sm font-medium">Manage Users</span>
+                </button>
+                <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-center">
+                  <Gavel className="h-6 w-6 mx-auto mb-2 text-green-600" />
+                  <span className="text-sm font-medium">View Auctions</span>
+                </button>
+                <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-center">
+                  <BarChart3 className="h-6 w-6 mx-auto mb-2 text-purple-600" />
+                  <span className="text-sm font-medium">Analytics</span>
+                </button>
+                <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-center">
+                  <Database className="h-6 w-6 mx-auto mb-2 text-red-600" />
+                  <span className="text-sm font-medium">System Health</span>
+                </button>
               </div>
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Active Auctions</p>
-                    <p className="text-2xl font-bold text-orange-600">{adminStats.activeAuctions}</p>
-                  </div>
-                  <Activity className="h-8 w-8 text-orange-600" />
-                </div>
+            </div>
+          </div>
+        );
+
+      case 'all-users':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">All Users</h2>
+              <div className="text-sm text-gray-600">
+                Total: {allUsers.length} users
               </div>
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Bids</p>
-                    <p className="text-2xl font-bold text-purple-600">{adminStats.totalBids}</p>
-                  </div>
-                  <BidIcon className="h-8 w-8 text-purple-600" />
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Revenue</p>
-                    <p className="text-2xl font-bold text-green-600">${adminStats.totalRevenue.toLocaleString()}</p>
-                  </div>
-                  <DollarSign className="h-8 w-8 text-green-600" />
-                </div>
-              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {allUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm ${
+                            user.role === 'buyer' ? 'bg-green-500' : 
+                            user.role === 'dealer' ? 'bg-blue-500' : 'bg-red-500'
+                          }`}>
+                            {user.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.role === 'buyer' ? 'bg-green-100 text-green-800' :
+                          user.role === 'dealer' ? 'bg-blue-100 text-blue-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {user.role.toUpperCase()}
+                        </span>
+                        {user.dealer_tier && (
+                          <div className="text-xs text-gray-500 mt-1">{user.dealer_tier}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div>{user.phone || 'N/A'}</div>
+                        <div>{user.location || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(user.created_at)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.is_verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {user.is_verified ? 'Verified' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button 
+                          onClick={() => {setSelectedUser(user); setShowUserModal(true);}}
+                          className="text-blue-600 hover:text-blue-900 mr-3"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         );
@@ -854,39 +1046,270 @@ const AdminDashboard = ({ activeSection }) => {
       case 'all-auctions':
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">All Live Auctions</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">All Auctions</h2>
+              <div className="text-sm text-gray-600">
+                Total: {allAuctions.length} auctions
+              </div>
+            </div>
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Car</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Buyer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Bid</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bids</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {allAuctions.map((auction) => (
                     <tr key={auction.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{auction.title}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{auction.buyer}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">${auction.currentBid.toLocaleString()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{auction.bids}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        <div className="text-sm font-medium text-gray-900">{auction.title}</div>
+                        <div className="text-sm text-gray-500">{auction.year} {auction.make} {auction.model}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{auction.buyer?.name || 'Unknown'}</div>
+                        <div className="text-sm text-gray-500">{auction.buyer?.email || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{formatCurrency(auction.max_budget)}</div>
+                        {auction.lowest_bid && (
+                          <div className="text-sm text-green-600">Low: {formatCurrency(auction.lowest_bid)}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {auction.bid_count || 0} bids
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          auction.status === 'active' ? 'bg-green-100 text-green-800' :
+                          auction.status === 'closed' ? 'bg-gray-100 text-gray-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
                           {auction.status}
                         </span>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(auction.created_at)}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                        <button className="text-red-600 hover:text-red-900">Manage</button>
+                        <select 
+                          value={auction.status}
+                          onChange={(e) => handleUpdateAuctionStatus(auction.id, e.target.value)}
+                          className="text-sm border border-gray-300 rounded px-2 py-1"
+                        >
+                          <option value="active">Active</option>
+                          <option value="closed">Closed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        );
+
+      case 'all-bids':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">All Bids</h2>
+              <div className="text-sm text-gray-600">
+                Total: {allBids.length} bids
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Auction</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dealer</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bid Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Placed</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {allBids.map((bid) => (
+                    <tr key={bid.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{bid.auction?.title || 'Unknown'}</div>
+                        <div className="text-sm text-gray-500">{bid.auction?.make} {bid.auction?.model}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{bid.dealer?.name || bid.dealer_name}</div>
+                        <div className="text-sm text-gray-500">{bid.dealer_tier}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-blue-600">{formatCurrency(bid.price)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          bid.status === 'winning' ? 'bg-green-100 text-green-800' :
+                          bid.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {bid.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(bid.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'analytics':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Platform Analytics</h2>
+            {analytics && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Daily Auctions Chart */}
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Auctions (Last 30 days)</h3>
+                  <div className="space-y-2">
+                    {analytics.daily_auctions.slice(-7).map((day, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{day._id}</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full" 
+                              style={{ width: `${(day.count / 10) * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium">{day.count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Daily Bids Chart */}
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Bids (Last 30 days)</h3>
+                  <div className="space-y-2">
+                    {analytics.daily_bids.slice(-7).map((day, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{day._id}</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-green-600 h-2 rounded-full" 
+                              style={{ width: `${(day.count / 20) * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium">{day.count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Auctions */}
+                <div className="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Auctions</h3>
+                  <div className="space-y-3">
+                    {analytics.top_auctions.slice(0, 5).map((auction, index) => (
+                      <div key={auction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <div className="font-medium text-gray-900">{auction.title}</div>
+                          <div className="text-sm text-gray-500">{auction.make} {auction.model}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-blue-600">{auction.bid_count} bids</div>
+                          {auction.lowest_bid && (
+                            <div className="text-sm text-gray-500">Low: {formatCurrency(auction.lowest_bid)}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'system':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">System Health</h2>
+            {systemHealth && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Database Status</h3>
+                    <div className={`w-3 h-3 rounded-full ${
+                      systemHealth.database === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                    }`}></div>
+                  </div>
+                  <p className="text-sm text-gray-600">{systemHealth.database}</p>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">WebSocket Connections</h3>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-600">{systemHealth.websocket_connections}</p>
+                  <p className="text-sm text-gray-600">Active connections</p>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">System Status</h3>
+                    <div className={`w-3 h-3 rounded-full ${
+                      systemHealth.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                    }`}></div>
+                  </div>
+                  <p className="text-sm text-gray-600">{systemHealth.status}</p>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Last Check</h3>
+                  </div>
+                  <p className="text-sm text-gray-600">{formatDate(systemHealth.timestamp)}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">System Actions</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button 
+                  onClick={fetchAdminData}
+                  className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-center"
+                >
+                  <RefreshCw className="h-5 w-5 mx-auto mb-2 text-blue-600" />
+                  <span className="text-sm">Refresh Data</span>
+                </button>
+                <button className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-center">
+                  <Database className="h-5 w-5 mx-auto mb-2 text-green-600" />
+                  <span className="text-sm">Backup DB</span>
+                </button>
+                <button className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-center">
+                  <Activity className="h-5 w-5 mx-auto mb-2 text-purple-600" />
+                  <span className="text-sm">View Logs</span>
+                </button>
+                <button className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-center">
+                  <Settings className="h-5 w-5 mx-auto mb-2 text-gray-600" />
+                  <span className="text-sm">Settings</span>
+                </button>
+              </div>
             </div>
           </div>
         );
