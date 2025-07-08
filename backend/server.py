@@ -351,7 +351,7 @@ async def create_bid(bid_data: BidCreate, current_user: User = Depends(get_curre
     await manager.broadcast_to_auction(
         json.dumps({
             "type": "new_bid",
-            "bid": bid.dict(),
+            "bid": {k: v.isoformat() if isinstance(v, datetime) else v for k, v in bid.dict().items()},
             "auction_id": bid_data.auction_id
         }),
         bid_data.auction_id
