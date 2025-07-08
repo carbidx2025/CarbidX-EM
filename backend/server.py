@@ -406,15 +406,322 @@ async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     total_users = await db.users.count_documents({})
+    total_buyers = await db.users.count_documents({"role": "buyer"})
+    total_dealers = await db.users.count_documents({"role": "dealer"})
     total_auctions = await db.car_requests.count_documents({})
     active_auctions = await db.car_requests.count_documents({"status": AuctionStatus.ACTIVE})
+    closed_auctions = await db.car_requests.count_documents({"status": AuctionStatus.CLOSED})
     total_bids = await db.bids.count_documents({})
+    
+    # Calculate revenue (simplified - $20 per completed auction + dealer fees)
+    completed_auctions = await db.car_requests.count_documents({"status": AuctionStatus.CLOSED})
+    buyer_fees = completed_auctions * 20  # $20 per auction
+    
+    # Dealer subscription revenue (estimated)
+    standard_dealers = await db.users.count_documents({"role": "dealer", "dealer_tier": "standard"})
+    premium_dealers = await db.users.count_documents({"role": "dealer", "dealer_tier": "premium"})
+    gold_dealers = await db.users.count_documents({"role": "dealer", "dealer_tier": "gold"})
+    
+    monthly_revenue = (standard_dealers * 250) + (premium_dealers * 350) + (gold_dealers * 500)
+    total_revenue = buyer_fees + monthly_revenue
     
     return {
         "total_users": total_users,
+        "total_buyers": total_buyers,
+        "total_dealers": total_dealers,
         "total_auctions": total_auctions,
         "active_auctions": active_auctions,
-        "total_bids": total_bids
+        "closed_auctions": closed_auctions,
+        "total_bids": total_bids,
+        "total_revenue": total_revenue,
+        "monthly_revenue": monthly_revenue,
+        "buyer_fees": buyer_fees
+    }
+
+# Admin User Management
+@api_router.get("/admin/users")
+async def get_all_users(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = await db.users.find({}, {"password": 0}).to_list(1000)  # Exclude passwords
+    return users
+
+@api_router.put("/admin/users/{user_id}")
+async def update_user(user_id: str, update_data: dict, current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Remove sensitive fields that shouldn't be updated via admin
+    safe_update = {k: v for k, v in update_data.items() if k not in ['password', 'id']}
+    safe_update['updated_at'] = datetime.utcnow()
+    
+    result = await db.users.update_one({"id": user_id}, {"$set": safe_update})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User updated successfully"}
+
+@api_router.delete("/admin/users/{user_id}")
+async def delete_user(user_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Don't allow admin to delete themselves
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    result = await db.users.delete_one({"id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User deleted successfully"}
+
+# Admin Auction Management
+@api_router.get("/admin/auctions")
+async def get_all_auctions(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all auctions with buyer information
+    pipeline = [
+        {
+            "$lookup": {
+                "from": "users",
+                "localField": "buyer_id",
+                "foreignField": "id",
+                "as": "buyer"
+            }
+        },
+        {
+            "$unwind": "$buyer"
+        },
+        {
+            "$lookup": {
+                "from": "bids",
+                "localField": "id",
+                "foreignField": "auction_id",
+                "as": "bids"
+            }
+        },
+        {
+            "$addFields": {
+                "bid_count": {"$size": "$bids"},
+                "lowest_bid": {"$min": "$bids.price"}
+            }
+        },
+        {
+            "$project": {
+                "buyer.password": 0
+            }
+        }
+    ]
+    
+    auctions = await db.car_requests.aggregate(pipeline).to_list(1000)
+    return auctions
+
+@api_router.put("/admin/auctions/{auction_id}/status")
+async def update_auction_status(auction_id: str, status_data: dict, current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    new_status = status_data.get("status")
+    if new_status not in [AuctionStatus.ACTIVE, AuctionStatus.CLOSED, AuctionStatus.CANCELLED]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    result = await db.car_requests.update_one(
+        {"id": auction_id},
+        {"$set": {"status": new_status, "updated_at": datetime.utcnow()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    
+    return {"message": f"Auction status updated to {new_status}"}
+
+# Admin Bid Management
+@api_router.get("/admin/bids")
+async def get_all_bids(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all bids with auction and dealer information
+    pipeline = [
+        {
+            "$lookup": {
+                "from": "car_requests",
+                "localField": "auction_id",
+                "foreignField": "id",
+                "as": "auction"
+            }
+        },
+        {
+            "$unwind": "$auction"
+        },
+        {
+            "$lookup": {
+                "from": "users",
+                "localField": "dealer_id",
+                "foreignField": "id",
+                "as": "dealer"
+            }
+        },
+        {
+            "$unwind": "$dealer"
+        },
+        {
+            "$project": {
+                "dealer.password": 0
+            }
+        },
+        {
+            "$sort": {"created_at": -1}
+        }
+    ]
+    
+    bids = await db.bids.aggregate(pipeline).to_list(1000)
+    return bids
+
+# Admin Analytics
+@api_router.get("/admin/analytics")
+async def get_analytics(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Daily auction creation stats (last 30 days)
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    auction_pipeline = [
+        {
+            "$match": {
+                "created_at": {"$gte": thirty_days_ago}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "$dateToString": {
+                        "format": "%Y-%m-%d",
+                        "date": "$created_at"
+                    }
+                },
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$sort": {"_id": 1}
+        }
+    ]
+    
+    daily_auctions = await db.car_requests.aggregate(auction_pipeline).to_list(30)
+    
+    # Bid activity stats
+    bid_pipeline = [
+        {
+            "$match": {
+                "created_at": {"$gte": thirty_days_ago}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "$dateToString": {
+                        "format": "%Y-%m-%d",
+                        "date": "$created_at"
+                    }
+                },
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$sort": {"_id": 1}
+        }
+    ]
+    
+    daily_bids = await db.bids.aggregate(bid_pipeline).to_list(30)
+    
+    # User registration stats
+    user_pipeline = [
+        {
+            "$match": {
+                "created_at": {"$gte": thirty_days_ago}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "date": {
+                        "$dateToString": {
+                            "format": "%Y-%m-%d",
+                            "date": "$created_at"
+                        }
+                    },
+                    "role": "$role"
+                },
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$sort": {"_id.date": 1}
+        }
+    ]
+    
+    daily_registrations = await db.users.aggregate(user_pipeline).to_list(100)
+    
+    # Top performing auctions
+    top_auctions_pipeline = [
+        {
+            "$lookup": {
+                "from": "bids",
+                "localField": "id",
+                "foreignField": "auction_id",
+                "as": "bids"
+            }
+        },
+        {
+            "$addFields": {
+                "bid_count": {"$size": "$bids"},
+                "lowest_bid": {"$min": "$bids.price"}
+            }
+        },
+        {
+            "$sort": {"bid_count": -1}
+        },
+        {
+            "$limit": 10
+        }
+    ]
+    
+    top_auctions = await db.car_requests.aggregate(top_auctions_pipeline).to_list(10)
+    
+    return {
+        "daily_auctions": daily_auctions,
+        "daily_bids": daily_bids,
+        "daily_registrations": daily_registrations,
+        "top_auctions": top_auctions
+    }
+
+# System Health Check
+@api_router.get("/admin/system/health")
+async def system_health_check(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Test database connection
+        await db.users.find_one()
+        db_status = "healthy"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    # Get system stats
+    active_connections = len(manager.active_connections)
+    
+    return {
+        "database": db_status,
+        "websocket_connections": active_connections,
+        "timestamp": datetime.utcnow(),
+        "status": "healthy" if db_status == "healthy" else "error"
     }
 
 # Include the router in the main app
