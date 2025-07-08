@@ -495,40 +495,34 @@ async def get_all_auctions(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     # Get all auctions with buyer information
-    pipeline = [
-        {
-            "$lookup": {
-                "from": "users",
-                "localField": "buyer_id",
-                "foreignField": "id",
-                "as": "buyer"
-            }
-        },
-        {
-            "$unwind": "$buyer"
-        },
-        {
-            "$lookup": {
-                "from": "bids",
-                "localField": "id",
-                "foreignField": "auction_id",
-                "as": "bids"
-            }
-        },
-        {
-            "$addFields": {
-                "bid_count": {"$size": "$bids"},
-                "lowest_bid": {"$min": "$bids.price"}
-            }
-        },
-        {
-            "$project": {
-                "buyer.password": 0
-            }
-        }
-    ]
+    auctions = await db.car_requests.find({}).to_list(1000)
     
-    auctions = await db.car_requests.aggregate(pipeline).to_list(1000)
+    # Enrich with buyer and bid information
+    for auction in auctions:
+        if "_id" in auction:
+            auction["_id"] = str(auction["_id"])
+        
+        # Get buyer info
+        buyer = await db.users.find_one({"id": auction.get("buyer_id")}, {"password": 0})
+        if buyer:
+            if "_id" in buyer:
+                buyer["_id"] = str(buyer["_id"])
+            auction["buyer"] = buyer
+        
+        # Get bid count and lowest bid
+        bids = await db.bids.find({"auction_id": auction.get("id")}).to_list(1000)
+        auction["bid_count"] = len(bids)
+        if bids:
+            auction["lowest_bid"] = min(bid["price"] for bid in bids)
+        
+        # Format dates
+        if "created_at" in auction and auction["created_at"]:
+            auction["created_at"] = auction["created_at"].isoformat()
+        if "updated_at" in auction and auction["updated_at"]:
+            auction["updated_at"] = auction["updated_at"].isoformat()
+        if "ends_at" in auction and auction["ends_at"]:
+            auction["ends_at"] = auction["ends_at"].isoformat()
+    
     return auctions
 
 @api_router.put("/admin/auctions/{auction_id}/status")
