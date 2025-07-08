@@ -550,41 +550,32 @@ async def get_all_bids(current_user: User = Depends(get_current_user)):
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Get all bids with auction and dealer information
-    pipeline = [
-        {
-            "$lookup": {
-                "from": "car_requests",
-                "localField": "auction_id",
-                "foreignField": "id",
-                "as": "auction"
-            }
-        },
-        {
-            "$unwind": "$auction"
-        },
-        {
-            "$lookup": {
-                "from": "users",
-                "localField": "dealer_id",
-                "foreignField": "id",
-                "as": "dealer"
-            }
-        },
-        {
-            "$unwind": "$dealer"
-        },
-        {
-            "$project": {
-                "dealer.password": 0
-            }
-        },
-        {
-            "$sort": {"created_at": -1}
-        }
-    ]
+    # Get all bids
+    bids = await db.bids.find({}).sort("created_at", -1).to_list(1000)
     
-    bids = await db.bids.aggregate(pipeline).to_list(1000)
+    # Enrich with auction and dealer information
+    for bid in bids:
+        if "_id" in bid:
+            bid["_id"] = str(bid["_id"])
+        
+        # Get auction info
+        auction = await db.car_requests.find_one({"id": bid.get("auction_id")})
+        if auction:
+            if "_id" in auction:
+                auction["_id"] = str(auction["_id"])
+            bid["auction"] = auction
+        
+        # Get dealer info
+        dealer = await db.users.find_one({"id": bid.get("dealer_id")}, {"password": 0})
+        if dealer:
+            if "_id" in dealer:
+                dealer["_id"] = str(dealer["_id"])
+            bid["dealer"] = dealer
+        
+        # Format dates
+        if "created_at" in bid and bid["created_at"]:
+            bid["created_at"] = bid["created_at"].isoformat()
+    
     return bids
 
 # Admin Analytics
