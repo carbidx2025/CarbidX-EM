@@ -270,6 +270,57 @@ async def login(user_data: UserLogin):
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
+# User Profile Management
+@api_router.put("/profile", response_model=User)
+async def update_profile(profile_data: UserUpdate, current_user: User = Depends(get_current_user)):
+    update_fields = {}
+    
+    # Handle fields that all users can update
+    if profile_data.name is not None:
+        update_fields["name"] = profile_data.name
+    if profile_data.email is not None:
+        # Check if email is already taken
+        existing_user = await db.users.find_one({"email": profile_data.email, "id": {"$ne": current_user.id}})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        update_fields["email"] = profile_data.email
+    if profile_data.phone is not None:
+        update_fields["phone"] = profile_data.phone
+    if profile_data.location is not None:
+        update_fields["location"] = profile_data.location
+    
+    # Handle dealer-specific fields
+    if current_user.role == UserRole.DEALER:
+        if profile_data.dealer_license is not None:
+            update_fields["dealer_license"] = profile_data.dealer_license
+            # If license is changed, mark as unverified
+            if profile_data.dealer_license != getattr(current_user, 'dealer_license', None):
+                update_fields["license_verified"] = False
+    
+    if update_fields:
+        update_fields["updated_at"] = datetime.utcnow()
+        
+        result = await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": update_fields}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Fetch and return updated user
+        updated_user = await db.users.find_one({"id": current_user.id})
+        if updated_user:
+            if "_id" in updated_user:
+                updated_user["_id"] = str(updated_user["_id"])
+            if "created_at" in updated_user and updated_user["created_at"]:
+                updated_user["created_at"] = updated_user["created_at"].isoformat()
+            if "updated_at" in updated_user and updated_user["updated_at"]:
+                updated_user["updated_at"] = updated_user["updated_at"].isoformat()
+            return User(**updated_user)
+    
+    return current_user
+
 # Car request routes
 @api_router.post("/car-requests", response_model=CarRequest)
 async def create_car_request(request_data: CarRequestCreate, current_user: User = Depends(get_current_user)):
