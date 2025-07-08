@@ -34,7 +34,12 @@ import {
   Fuel,
   Gauge,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  TrendingDown as BidIcon,
+  Users as UsersIcon,
+  ShoppingCart,
+  Database
 } from 'lucide-react';
 import './App.css';
 
@@ -126,7 +131,7 @@ const useAuth = () => {
   return context;
 };
 
-// Landing Page Component (matches the screenshot design)
+// Landing Page Component
 const LandingPage = () => {
   const navigate = useNavigate();
 
@@ -205,9 +210,14 @@ const LandingPage = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Live Auctions</h1>
-            <p className="text-gray-600">({auctionCars.length} vehicles)</p>
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <Car className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">CarBidX</h1>
+              <p className="text-gray-600">Live Auctions ({auctionCars.length} vehicles)</p>
+            </div>
           </div>
           <button 
             onClick={handleAnyClick}
@@ -364,19 +374,19 @@ const LandingPage = () => {
 
         {/* Call to Action */}
         <div className="text-center mt-12">
-          <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-8 rounded-lg">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-lg">
             <h2 className="text-3xl font-bold mb-4">Ready to Start Bidding?</h2>
-            <p className="text-xl mb-6">Join thousands of buyers and dealers in the ultimate car auction experience</p>
+            <p className="text-xl mb-6">Join CarBidX - The ultimate reverse car auction platform</p>
             <div className="space-x-4">
               <button 
                 onClick={() => navigate('/register')}
-                className="bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
               >
                 Get Started
               </button>
               <button 
                 onClick={() => navigate('/login')}
-                className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-purple-600 transition-colors"
+                className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
               >
                 Sign In
               </button>
@@ -396,7 +406,7 @@ const ProtectedRoute = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p className="text-gray-600">Loading...</p>
         </div>
       </div>
@@ -406,34 +416,520 @@ const ProtectedRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" />;
 };
 
-// Simple Dashboard Component
-const Dashboard = () => {
-  const { user, logout } = useAuth();
+// Sidebar Component for Dashboard
+const Sidebar = ({ user, logout, activeSection, setActiveSection }) => {
+  const navigate = useNavigate();
+
+  const getBuyerMenuItems = () => [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'live-auctions', label: 'Live Auctions', icon: Gavel },
+    { id: 'my-requests', label: 'My Requests', icon: FileText },
+    { id: 'create-request', label: 'Create Request', icon: Plus },
+    { id: 'favorites', label: 'Favorites', icon: Heart },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
+  const getDealerMenuItems = () => [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'my-auctions', label: 'My Auctions', icon: Gavel },
+    { id: 'my-bids', label: 'My Bids', icon: BidIcon },
+    { id: 'active-bids', label: 'Active Bids', icon: Activity },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
+  const getAdminMenuItems = () => [
+    { id: 'dashboard', label: 'Admin Dashboard', icon: Home },
+    { id: 'all-auctions', label: 'All Auctions', icon: Gavel },
+    { id: 'all-users', label: 'All Users', icon: UsersIcon },
+    { id: 'all-bids', label: 'All Bids', icon: BidIcon },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'system', label: 'System', icon: Database },
+  ];
+
+  const getMenuItems = () => {
+    switch (user?.role) {
+      case 'buyer':
+        return getBuyerMenuItems();
+      case 'dealer':
+        return getDealerMenuItems();
+      case 'admin':
+        return getAdminMenuItems();
+      default:
+        return [];
+    }
+  };
+
+  const getRoleColor = () => {
+    switch (user?.role) {
+      case 'buyer':
+        return 'bg-green-500';
+      case 'dealer':
+        return 'bg-blue-500';
+      case 'admin':
+        return 'bg-red-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Welcome to AutoBid Pro</h1>
-              <p className="text-gray-600">Hello, {user?.name}!</p>
-            </div>
-            <button
-              onClick={logout}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-            >
-              Logout
-            </button>
+    <div className="w-64 bg-white shadow-lg h-screen fixed left-0 top-0 z-10">
+      {/* Logo */}
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <Car className="h-5 w-5 text-white" />
           </div>
-          
-          <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 rounded-lg">
-            <h2 className="text-2xl font-bold mb-4">🎉 Successfully Logged In!</h2>
-            <p className="text-lg">You now have access to the AutoBid Pro reverse auction platform.</p>
-            <p className="mt-2">Start bidding on your dream cars or create auction requests!</p>
+          <span className="text-xl font-bold text-gray-900">CarBidX</span>
+        </div>
+        <div className="mt-2">
+          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${getRoleColor()}`}>
+            {user?.role?.toUpperCase()} PANEL
           </div>
         </div>
       </div>
+
+      {/* Navigation */}
+      <nav className="p-4 space-y-2">
+        {getMenuItems().map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveSection(item.id)}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              activeSection === item.id
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <item.icon className="h-5 w-5" />
+            <span className="font-medium">{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* User Profile */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+        <div className="flex items-center space-x-3 mb-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getRoleColor()}`}>
+            <User className="h-5 w-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+            <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+          </div>
+        </div>
+        
+        <button
+          onClick={logout}
+          className="w-full flex items-center justify-center space-x-2 text-sm text-red-600 hover:text-red-700 py-2"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Buyer Dashboard Component
+const BuyerDashboard = ({ activeSection }) => {
+  const sampleRequests = [
+    { id: 1, title: 'BMW X5 2023', status: 'Active', bids: 12, endTime: '2h 30m', maxBudget: 80000 },
+    { id: 2, title: 'Mercedes C-Class 2022', status: 'Closed', bids: 8, endTime: 'Ended', maxBudget: 50000 },
+  ];
+
+  const liveAuctions = [
+    { id: 1, title: 'Mercedes-Benz C-Class AMG', currentBid: 49000, timeLeft: '2h 50m', bids: 15 },
+    { id: 2, title: 'BMW X5 M Competition', currentBid: 87500, timeLeft: '4h 50m', bids: 28 },
+    { id: 3, title: 'Audi A4 Quattro', currentBid: 60000, timeLeft: '7h 50m', bids: 22 },
+  ];
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'dashboard':
+        return (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6 rounded-lg">
+              <h2 className="text-2xl font-bold mb-2">👋 Welcome Back, Buyer!</h2>
+              <p className="text-lg">Find your dream car through reverse auctions</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Active Requests</p>
+                    <p className="text-2xl font-bold text-green-600">3</p>
+                  </div>
+                  <FileText className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Bids Received</p>
+                    <p className="text-2xl font-bold text-blue-600">47</p>
+                  </div>
+                  <Gavel className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Favorites</p>
+                    <p className="text-2xl font-bold text-purple-600">8</p>
+                  </div>
+                  <Heart className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'live-auctions':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Live Auctions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {liveAuctions.map((auction) => (
+                <div key={auction.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                  <h3 className="font-semibold text-gray-900 mb-2">{auction.title}</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Current Bid:</span>
+                      <span className="font-bold text-blue-600">${auction.currentBid.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Time Left:</span>
+                      <span className="text-orange-600">{auction.timeLeft}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Bids:</span>
+                      <span>{auction.bids}</span>
+                    </div>
+                  </div>
+                  <button className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
+                    View Details
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'my-requests':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">My Car Requests</h2>
+              <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                Create New Request
+              </button>
+            </div>
+            <div className="space-y-4">
+              {sampleRequests.map((request) => (
+                <div key={request.id} className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{request.title}</h3>
+                      <p className="text-sm text-gray-600">Max Budget: ${request.maxBudget.toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        request.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {request.status}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{request.bids} bids</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex space-x-3">
+                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                      View Bids
+                    </button>
+                    <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">
+                      Edit Request
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      default:
+        return <div className="text-center text-gray-500">Section under development</div>;
+    }
+  };
+
+  return (
+    <div className="ml-64 p-8 bg-gray-50 min-h-screen">
+      {renderContent()}
+    </div>
+  );
+};
+
+// Dealer Dashboard Component
+const DealerDashboard = ({ activeSection }) => {
+  const myAuctions = [
+    { id: 1, title: 'Mercedes-Benz C-Class AMG', myBid: 48500, currentBid: 49000, status: 'Outbid', timeLeft: '2h 50m' },
+    { id: 2, title: 'BMW X5 M Competition', myBid: 87500, currentBid: 87500, status: 'Winning', timeLeft: '4h 50m' },
+  ];
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'dashboard':
+        return (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg">
+              <h2 className="text-2xl font-bold mb-2">🚗 Dealer Dashboard</h2>
+              <p className="text-lg">Manage your bids and win more auctions</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Active Bids</p>
+                    <p className="text-2xl font-bold text-blue-600">5</p>
+                  </div>
+                  <BidIcon className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Winning Bids</p>
+                    <p className="text-2xl font-bold text-green-600">2</p>
+                  </div>
+                  <Award className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Bids</p>
+                    <p className="text-2xl font-bold text-purple-600">23</p>
+                  </div>
+                  <Activity className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Won Auctions</p>
+                    <p className="text-2xl font-bold text-orange-600">12</p>
+                  </div>
+                  <Star className="h-8 w-8 text-orange-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'my-auctions':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">My Active Auctions</h2>
+            <div className="space-y-4">
+              {myAuctions.map((auction) => (
+                <div key={auction.id} className="bg-white p-6 rounded-lg shadow-md">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{auction.title}</h3>
+                      <p className="text-sm text-gray-600">My Bid: ${auction.myBid.toLocaleString()}</p>
+                      <p className="text-sm text-gray-600">Current Bid: ${auction.currentBid.toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        auction.status === 'Winning' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {auction.status}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{auction.timeLeft} left</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex space-x-3">
+                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                      Update Bid
+                    </button>
+                    <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      default:
+        return <div className="text-center text-gray-500">Section under development</div>;
+    }
+  };
+
+  return (
+    <div className="ml-64 p-8 bg-gray-50 min-h-screen">
+      {renderContent()}
+    </div>
+  );
+};
+
+// Admin Dashboard Component
+const AdminDashboard = ({ activeSection }) => {
+  const adminStats = {
+    totalUsers: 1247,
+    totalAuctions: 156,
+    activeAuctions: 23,
+    totalBids: 892,
+    totalRevenue: 125000
+  };
+
+  const allAuctions = [
+    { id: 1, title: 'Mercedes-Benz C-Class AMG', buyer: 'John Doe', currentBid: 49000, bids: 15, status: 'Active' },
+    { id: 2, title: 'BMW X5 M Competition', buyer: 'Jane Smith', currentBid: 87500, bids: 28, status: 'Active' },
+    { id: 3, title: 'Audi A4 Quattro', buyer: 'Mike Johnson', currentBid: 60000, bids: 22, status: 'Active' },
+  ];
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'dashboard':
+        return (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-red-600 to-purple-600 text-white p-6 rounded-lg">
+              <h2 className="text-2xl font-bold mb-2">🔧 Admin Control Center</h2>
+              <p className="text-lg">Monitor and manage the entire CarBidX platform</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Users</p>
+                    <p className="text-2xl font-bold text-blue-600">{adminStats.totalUsers}</p>
+                  </div>
+                  <UsersIcon className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Auctions</p>
+                    <p className="text-2xl font-bold text-green-600">{adminStats.totalAuctions}</p>
+                  </div>
+                  <Gavel className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Active Auctions</p>
+                    <p className="text-2xl font-bold text-orange-600">{adminStats.activeAuctions}</p>
+                  </div>
+                  <Activity className="h-8 w-8 text-orange-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Bids</p>
+                    <p className="text-2xl font-bold text-purple-600">{adminStats.totalBids}</p>
+                  </div>
+                  <BidIcon className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Revenue</p>
+                    <p className="text-2xl font-bold text-green-600">${adminStats.totalRevenue.toLocaleString()}</p>
+                  </div>
+                  <DollarSign className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'all-auctions':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">All Live Auctions</h2>
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Car</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Buyer</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Bid</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bids</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {allAuctions.map((auction) => (
+                    <tr key={auction.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{auction.title}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{auction.buyer}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">${auction.currentBid.toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{auction.bids}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          {auction.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
+                        <button className="text-red-600 hover:text-red-900">Manage</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      default:
+        return <div className="text-center text-gray-500">Section under development</div>;
+    }
+  };
+
+  return (
+    <div className="ml-64 p-8 bg-gray-50 min-h-screen">
+      {renderContent()}
+    </div>
+  );
+};
+
+// Main Dashboard Router
+const Dashboard = () => {
+  const { user } = useAuth();
+  const [activeSection, setActiveSection] = useState('dashboard');
+
+  const renderDashboard = () => {
+    switch (user?.role) {
+      case 'buyer':
+        return <BuyerDashboard activeSection={activeSection} />;
+      case 'dealer':
+        return <DealerDashboard activeSection={activeSection} />;
+      case 'admin':
+        return <AdminDashboard activeSection={activeSection} />;
+      default:
+        return <div className="text-center text-gray-500">Invalid user role</div>;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Sidebar 
+        user={user} 
+        logout={useAuth().logout} 
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+      />
+      {renderDashboard()}
     </div>
   );
 };
@@ -455,34 +951,40 @@ const Login = () => {
     if (success) {
       navigate('/dashboard');
     } else {
-      setError('Invalid credentials. Try: test@test.com / 123456');
+      setError('Invalid credentials');
     }
     setLoading(false);
   };
 
-  const handleDemoLogin = async () => {
+  const handleQuickLogin = async (role) => {
     setLoading(true);
     setError('');
     
-    const success = await login({ email: 'test@test.com', password: '123456' });
+    const credentials = {
+      buyer: { email: 'test@test.com', password: '123456' },
+      dealer: { email: 'dealer@test.com', password: '123456' },
+      admin: { email: 'admin@autobidpro.com', password: 'admin123' }
+    };
+
+    const success = await login(credentials[role]);
     if (success) {
       navigate('/dashboard');
     } else {
-      setError('Demo login failed');
+      setError(`${role} login failed`);
     }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
       <div className="max-w-md w-full mx-4">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
               <Car className="h-8 w-8 text-white" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-            <p className="text-gray-600 mt-2">Sign in to AutoBid Pro</p>
+            <h2 className="text-3xl font-bold text-gray-900">Welcome to CarBidX</h2>
+            <p className="text-gray-600 mt-2">Sign in to your account</p>
           </div>
 
           {error && (
@@ -501,7 +1003,7 @@ const Login = () => {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your email"
               />
             </div>
@@ -515,7 +1017,7 @@ const Login = () => {
                 required
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your password"
               />
             </div>
@@ -523,33 +1025,44 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50"
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
 
-          <div className="mt-4">
-            <button
-              onClick={handleDemoLogin}
-              disabled={loading}
-              className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-all duration-200 disabled:opacity-50"
-            >
-              🚀 Quick Demo Login
-            </button>
+          <div className="mt-6 space-y-2">
+            <p className="text-center text-sm text-gray-600 mb-3">Quick Demo Login:</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleQuickLogin('buyer')}
+                disabled={loading}
+                className="bg-green-600 text-white py-2 px-3 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+              >
+                👤 Buyer
+              </button>
+              <button
+                onClick={() => handleQuickLogin('dealer')}
+                disabled={loading}
+                className="bg-blue-600 text-white py-2 px-3 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+              >
+                🚗 Dealer
+              </button>
+              <button
+                onClick={() => handleQuickLogin('admin')}
+                disabled={loading}
+                className="bg-red-600 text-white py-2 px-3 rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+              >
+                🔧 Admin
+              </button>
+            </div>
           </div>
 
           <div className="text-center mt-6">
             <span className="text-gray-600">Don't have an account? </span>
-            <Link to="/register" className="text-purple-600 hover:text-purple-700 font-semibold">
+            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-semibold">
               Sign Up
             </Link>
-          </div>
-          
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
-            <p><strong>Demo Credentials:</strong></p>
-            <p>Email: test@test.com</p>
-            <p>Password: 123456</p>
           </div>
         </div>
       </div>
@@ -564,6 +1077,7 @@ const Register = () => {
     email: '',
     password: '',
     role: 'buyer',
+    dealer_tier: 'standard',
     phone: '',
     location: ''
   });
@@ -577,7 +1091,12 @@ const Register = () => {
     setLoading(true);
     setError('');
 
-    const success = await register(formData);
+    const dataToSubmit = { ...formData };
+    if (formData.role === 'buyer') {
+      delete dataToSubmit.dealer_tier;
+    }
+
+    const success = await register(dataToSubmit);
     if (success) {
       navigate('/dashboard');
     } else {
@@ -587,14 +1106,14 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 py-8">
       <div className="max-w-md w-full mx-4">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
               <Car className="h-8 w-8 text-white" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">Join AutoBid Pro</h2>
+            <h2 className="text-3xl font-bold text-gray-900">Join CarBidX</h2>
             <p className="text-gray-600 mt-2">Create your account today</p>
           </div>
 
@@ -614,7 +1133,7 @@ const Register = () => {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your full name"
               />
             </div>
@@ -628,7 +1147,7 @@ const Register = () => {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your email"
               />
             </div>
@@ -642,7 +1161,7 @@ const Register = () => {
                 required
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter your password"
               />
             </div>
@@ -654,17 +1173,34 @@ const Register = () => {
               <select
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="buyer">Buyer</option>
-                <option value="dealer">Dealer</option>
+                <option value="buyer">Car Buyer</option>
+                <option value="dealer">Car Dealer</option>
               </select>
             </div>
+
+            {formData.role === 'dealer' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dealer Tier
+                </label>
+                <select
+                  value={formData.dealer_tier}
+                  onChange={(e) => setFormData({ ...formData, dealer_tier: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="standard">Standard ($250/month)</option>
+                  <option value="premium">Premium ($350/month)</option>
+                  <option value="gold">Gold ($500/month)</option>
+                </select>
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -672,7 +1208,7 @@ const Register = () => {
 
           <div className="text-center mt-6">
             <span className="text-gray-600">Already have an account? </span>
-            <Link to="/login" className="text-purple-600 hover:text-purple-700 font-semibold">
+            <Link to="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
               Sign In
             </Link>
           </div>
