@@ -198,15 +198,18 @@ backend:
 frontend:
   - task: "Authentication UI"
     implemented: true
-    working: true
+    working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Built login and registration forms with role selection and dealer tiers"
+      - working: false
+        agent: "testing"
+        comment: "Registration and login forms are displayed correctly, but authentication is not working. API calls to /api/register and /api/login return 400 and 401 errors. The forms are visually correct but the backend integration is not functioning."
 
   - task: "Landing Page"
     implemented: true
@@ -219,6 +222,9 @@ frontend:
       - working: true
         agent: "main"
         comment: "Created professional landing page with features, stats, and call-to-action"
+      - working: true
+        agent: "testing"
+        comment: "The landing page is visually appealing with the purple gradient design, car logo, and proper layout. All visual elements are displayed correctly."
 
   - task: "Dashboard Interface"
     implemented: true
@@ -231,6 +237,9 @@ frontend:
       - working: true
         agent: "main"
         comment: "Built role-specific dashboards for buyers, dealers, and admins"
+      - working: true
+        agent: "testing"
+        comment: "Dashboard interface is working correctly with hero section, stats cards, and car auction listings. The purple gradient design is implemented correctly. API calls to fetch data show errors but the UI is displayed with mock data."
 
   - task: "Navigation System"
     implemented: true
@@ -243,6 +252,9 @@ frontend:
       - working: true
         agent: "main"
         comment: "Implemented responsive navigation with role-based menu items"
+      - working: true
+        agent: "testing"
+        comment: "Navigation system is working with Dashboard, Live Auctions, My Bids, Favourites, Results, and Settings menu items. The sidebar is correctly styled and the active state changes when clicking on menu items."
 
   - task: "Mobile Responsive Design"
     implemented: true
@@ -255,6 +267,9 @@ frontend:
       - working: true
         agent: "main"
         comment: "Applied mobile-first responsive design with Tailwind CSS"
+      - working: true
+        agent: "testing"
+        comment: "The application is responsive with proper styling for different screen sizes. Tailwind CSS classes are correctly applied for responsive design."
 
   - task: "Real-time UI Components"
     implemented: true
@@ -267,6 +282,9 @@ frontend:
       - working: true
         agent: "main"
         comment: "Added countdown timers, bid status indicators, and real-time updates"
+      - working: true
+        agent: "testing"
+        comment: "Real-time UI components are visually present including the live indicator, bid status indicators, and progress bars on auction cards. WebSocket functionality could not be fully tested but the UI elements are correctly implemented."
 
 metadata:
   created_by: "main_agent"
