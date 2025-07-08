@@ -331,7 +331,8 @@ async def create_bid(bid_data: BidCreate, current_user: User = Depends(get_curre
         dealer_name=current_user.name,
         dealer_tier=current_user.dealer_tier,
         price=bid_data.price,
-        message=bid_data.message
+        message=bid_data.message,
+        status=BidStatus.WINNING  # Set initial status to winning
     )
     
     await db.bids.insert_one(bid.dict())
