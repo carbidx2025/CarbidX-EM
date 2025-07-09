@@ -114,6 +114,9 @@ const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
+    
+    // Redirect to landing page after logout
+    window.location.href = '/';
   };
 
   return (
