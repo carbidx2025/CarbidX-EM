@@ -666,7 +666,7 @@ const BuyerDashboard = ({ activeSection }) => {
   };
 
   return (
-    <div className="ml-64 p-8 bg-gray-50 min-h-screen">
+    <div className="ml-48 p-8 bg-gray-50 min-h-screen">
       {renderContent()}
     </div>
   );
