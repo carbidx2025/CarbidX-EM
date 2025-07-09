@@ -476,7 +476,7 @@ const Sidebar = ({ user, logout, activeSection, setActiveSection }) => {
   };
 
   return (
-    <div className="w-56 bg-white shadow-lg h-screen fixed left-0 top-0 z-10">
+    <div className="w-48 bg-white shadow-lg h-screen fixed left-0 top-0 z-10">
       {/* Logo */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-2">
