@@ -1062,6 +1062,37 @@ const DealerDashboard = ({ activeSection }) => {
   };
 
   const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">{error}</div>
+              <div className="mt-4">
+                <button 
+                  onClick={() => {setError(null); fetchDealerData();}}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const stats = getMyStats();
+
     switch (activeSection) {
       case 'dashboard':
         return (
@@ -1076,7 +1107,7 @@ const DealerDashboard = ({ activeSection }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Active Bids</p>
-                    <p className="text-2xl font-bold text-blue-600">5</p>
+                    <p className="text-2xl font-bold text-blue-600">{stats.activeBids}</p>
                   </div>
                   <BidIcon className="h-8 w-8 text-blue-600" />
                 </div>
@@ -1085,7 +1116,7 @@ const DealerDashboard = ({ activeSection }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Winning Bids</p>
-                    <p className="text-2xl font-bold text-green-600">2</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.winningBids}</p>
                   </div>
                   <Award className="h-8 w-8 text-green-600" />
                 </div>
@@ -1094,7 +1125,7 @@ const DealerDashboard = ({ activeSection }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Total Bids</p>
-                    <p className="text-2xl font-bold text-purple-600">23</p>
+                    <p className="text-2xl font-bold text-purple-600">{stats.totalBids}</p>
                   </div>
                   <Activity className="h-8 w-8 text-purple-600" />
                 </div>
@@ -1102,12 +1133,41 @@ const DealerDashboard = ({ activeSection }) => {
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Won Auctions</p>
-                    <p className="text-2xl font-bold text-orange-600">12</p>
+                    <p className="text-sm text-gray-600">Lost Bids</p>
+                    <p className="text-2xl font-bold text-orange-600">{stats.lostBids}</p>
                   </div>
                   <Star className="h-8 w-8 text-orange-600" />
                 </div>
               </div>
+            </div>
+
+            {/* Recent Bids */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Bids</h3>
+              {myBids.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No bids yet. Start bidding on auctions!</p>
+              ) : (
+                <div className="space-y-4">
+                  {myBids.slice(0, 3).map((bid) => (
+                    <div key={bid.id} className="flex justify-between items-center p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">Auction: {bid.auction_id}</h4>
+                        <p className="text-sm text-gray-600">Bid Amount: {formatCurrency(bid.price)}</p>
+                        {bid.message && <p className="text-sm text-gray-500">{bid.message}</p>}
+                      </div>
+                      <div className="text-right">
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          bid.status === 'winning' ? 'bg-green-100 text-green-800' : 
+                          bid.status === 'lost' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {bid.status}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{formatDate(bid.created_at)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -1115,41 +1175,105 @@ const DealerDashboard = ({ activeSection }) => {
       case 'my-auctions':
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">My Active Auctions</h2>
-            <div className="space-y-4">
-              {myAuctions.map((auction) => (
-                <div key={auction.id} className="bg-white p-6 rounded-lg shadow-md">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{auction.title}</h3>
-                      <p className="text-sm text-gray-600">My Bid: ${auction.myBid.toLocaleString()}</p>
-                      <p className="text-sm text-gray-600">Current Bid: ${auction.currentBid.toLocaleString()}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        auction.status === 'Winning' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {auction.status}
+            <h2 className="text-2xl font-bold text-gray-900">Available Auctions</h2>
+            {availableAuctions.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No active auctions available.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {availableAuctions.map((auction) => (
+                  <div key={auction.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                    <h3 className="font-semibold text-gray-900 mb-2">{auction.title}</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Max Budget:</span>
+                        <span className="font-bold text-green-600">{formatCurrency(auction.max_budget)}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{auction.timeLeft} left</p>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Time Left:</span>
+                        <span className="text-orange-600">{calculateTimeLeft(auction.ends_at)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Make & Model:</span>
+                        <span>{auction.make} {auction.model}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Year:</span>
+                        <span>{auction.year}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-4 flex space-x-3">
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                      Update Bid
-                    </button>
-                    <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">
-                      View Details
+                    <button 
+                      onClick={() => {setSelectedAuction(auction); setShowBidModal(true);}}
+                      className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                    >
+                      Place Bid
                     </button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
+      case 'my-bids':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">My Bids</h2>
+            {myBids.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 mb-4">You haven't placed any bids yet.</p>
+                <button 
+                  onClick={() => setActiveSection('my-auctions')}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+                >
+                  Browse Auctions
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {myBids.map((bid) => (
+                  <div key={bid.id} className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-2">Auction: {bid.auction_id}</h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div>
+                            <span className="font-medium">My Bid:</span> {formatCurrency(bid.price)}
+                          </div>
+                          <div>
+                            <span className="font-medium">Placed:</span> {formatDate(bid.created_at)}
+                          </div>
+                        </div>
+                        {bid.message && (
+                          <p className="text-sm text-gray-600 mt-2">{bid.message}</p>
+                        )}
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          bid.status === 'winning' ? 'bg-green-100 text-green-800' : 
+                          bid.status === 'lost' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {bid.status.toUpperCase()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'settings':
+        return <UserSettings />;
+
       default:
-        return <div className="text-center text-gray-500">Section under development</div>;
+        return (
+          <div className="text-center py-12">
+            <p className="text-gray-500">This section is being developed.</p>
+          </div>
+        );
     }
   };
 
