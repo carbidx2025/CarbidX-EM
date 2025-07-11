@@ -686,6 +686,35 @@ const BuyerDashboard = ({ activeSection }) => {
   };
 
   const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">{error}</div>
+              <div className="mt-4">
+                <button 
+                  onClick={() => {setError(null); fetchBuyerData();}}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeSection) {
       case 'dashboard':
         return (
@@ -700,7 +729,9 @@ const BuyerDashboard = ({ activeSection }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Active Requests</p>
-                    <p className="text-2xl font-bold text-green-600">3</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {myRequests.filter(req => req.status === 'active').length}
+                    </p>
                   </div>
                   <FileText className="h-8 w-8 text-green-600" />
                 </div>
@@ -708,8 +739,8 @@ const BuyerDashboard = ({ activeSection }) => {
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Total Bids Received</p>
-                    <p className="text-2xl font-bold text-blue-600">47</p>
+                    <p className="text-sm text-gray-600">Total Requests</p>
+                    <p className="text-2xl font-bold text-blue-600">{myRequests.length}</p>
                   </div>
                   <Gavel className="h-8 w-8 text-blue-600" />
                 </div>
@@ -717,12 +748,39 @@ const BuyerDashboard = ({ activeSection }) => {
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Favorites</p>
-                    <p className="text-2xl font-bold text-purple-600">8</p>
+                    <p className="text-sm text-gray-600">Live Auctions</p>
+                    <p className="text-2xl font-bold text-purple-600">{liveAuctions.length}</p>
                   </div>
                   <Heart className="h-8 w-8 text-purple-600" />
                 </div>
               </div>
+            </div>
+
+            {/* Recent Requests */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Requests</h3>
+              {myRequests.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No requests yet. Create your first request!</p>
+              ) : (
+                <div className="space-y-4">
+                  {myRequests.slice(0, 3).map((request) => (
+                    <div key={request.id} className="flex justify-between items-center p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{request.title}</h4>
+                        <p className="text-sm text-gray-600">Max Budget: {formatCurrency(request.max_budget)}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          request.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {request.status}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{calculateTimeLeft(request.ends_at)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -731,30 +789,43 @@ const BuyerDashboard = ({ activeSection }) => {
         return (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">Live Auctions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {liveAuctions.map((auction) => (
-                <div key={auction.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                  <h3 className="font-semibold text-gray-900 mb-2">{auction.title}</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Current Bid:</span>
-                      <span className="font-bold text-blue-600">${auction.currentBid.toLocaleString()}</span>
+            {liveAuctions.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No live auctions at the moment.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {liveAuctions.map((auction) => (
+                  <div key={auction.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                    <h3 className="font-semibold text-gray-900 mb-2">{auction.title}</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Max Budget:</span>
+                        <span className="font-bold text-blue-600">{formatCurrency(auction.max_budget)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Time Left:</span>
+                        <span className="text-orange-600">{calculateTimeLeft(auction.ends_at)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Make & Model:</span>
+                        <span>{auction.make} {auction.model}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Year:</span>
+                        <span>{auction.year}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Time Left:</span>
-                      <span className="text-orange-600">{auction.timeLeft}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Bids:</span>
-                      <span>{auction.bids}</span>
-                    </div>
+                    <button 
+                      onClick={() => handleViewBids(auction.id)}
+                      className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                    >
+                      View Bids
+                    </button>
                   </div>
-                  <button className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
-                    View Details
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
@@ -763,43 +834,89 @@ const BuyerDashboard = ({ activeSection }) => {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">My Car Requests</h2>
-              <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+              <button 
+                onClick={() => setShowCreateForm(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              >
                 Create New Request
               </button>
             </div>
-            <div className="space-y-4">
-              {sampleRequests.map((request) => (
-                <div key={request.id} className="bg-white p-6 rounded-lg shadow-md">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{request.title}</h3>
-                      <p className="text-sm text-gray-600">Max Budget: ${request.maxBudget.toLocaleString()}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        request.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {request.status}
+            
+            {myRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 mb-4">You haven't created any car requests yet.</p>
+                <button 
+                  onClick={() => setShowCreateForm(true)}
+                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700"
+                >
+                  Create Your First Request
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {myRequests.map((request) => (
+                  <div key={request.id} className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-2">{request.title}</h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div>
+                            <span className="font-medium">Make & Model:</span> {request.make} {request.model}
+                          </div>
+                          <div>
+                            <span className="font-medium">Year:</span> {request.year}
+                          </div>
+                          <div>
+                            <span className="font-medium">Max Budget:</span> {formatCurrency(request.max_budget)}
+                          </div>
+                          <div>
+                            <span className="font-medium">Ends:</span> {calculateTimeLeft(request.ends_at)}
+                          </div>
+                        </div>
+                        {request.description && (
+                          <p className="text-sm text-gray-600 mt-2">{request.description}</p>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{request.bids} bids</p>
+                      <div className="text-right ml-4">
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          request.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          request.status === 'closed' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {request.status.toUpperCase()}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">Created: {formatDate(request.created_at)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex space-x-3">
+                      <button 
+                        onClick={() => handleViewBids(request.id)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                      >
+                        View Bids
+                      </button>
+                      <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">
+                        Edit Request
+                      </button>
                     </div>
                   </div>
-                  <div className="mt-4 flex space-x-3">
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                      View Bids
-                    </button>
-                    <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">
-                      Edit Request
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
+      case 'create-request':
+        return <CreateRequestForm onSubmit={handleCreateRequest} onCancel={() => setShowCreateForm(false)} />;
+
+      case 'settings':
+        return <UserSettings />;
+
       default:
-        return <div className="text-center text-gray-500">Section under development</div>;
+        return (
+          <div className="text-center py-12">
+            <p className="text-gray-500">This section is being developed.</p>
+          </div>
+        );
     }
   };
 
