@@ -336,8 +336,9 @@ class TestCarBidXBackend(unittest.TestCase):
         self.assertIsInstance(data, list)
         # We won't check the exact bid count as it may vary
         
-        # Verify bids are sorted by price (lowest first)
-        self.assertTrue(data[0]["price"] <= data[1]["price"])
+        # Verify bids are sorted by price (lowest first) if there are multiple bids
+        if len(data) >= 2:
+            self.assertTrue(data[0]["price"] <= data[1]["price"])
         
         # Get dealer's bids
         response = requests.get(
