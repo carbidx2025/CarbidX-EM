@@ -1418,6 +1418,7 @@ const BidForm = ({ auction, onSubmit, onCancel }) => {
       </form>
     </div>
   );
+};
 
 // Admin Dashboard Component
 const AdminDashboard = ({ activeSection }) => {
