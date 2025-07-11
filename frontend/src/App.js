@@ -1280,9 +1280,144 @@ const DealerDashboard = ({ activeSection }) => {
   return (
     <div className="ml-48 p-8 bg-gray-50 min-h-screen">
       {renderContent()}
+      
+      {/* Bid Modal */}
+      {showBidModal && selectedAuction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <BidForm 
+              auction={selectedAuction}
+              onSubmit={handlePlaceBid} 
+              onCancel={() => setShowBidModal(false)} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+// Bid Form Component
+const BidForm = ({ auction, onSubmit, onCancel }) => {
+  const [formData, setFormData] = useState({
+    auction_id: auction.id,
+    price: '',
+    message: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const submitData = {
+        ...formData,
+        price: parseFloat(formData.price)
+      };
+      
+      await onSubmit(submitData);
+    } catch (error) {
+      setError(error.response?.data?.detail || 'Failed to place bid');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-bold text-gray-900">Place Bid</h3>
+        <button 
+          onClick={onCancel}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Auction Details */}
+      <div className="bg-gray-50 p-4 rounded-lg mb-6">
+        <h4 className="font-semibold text-gray-900 mb-2">{auction.title}</h4>
+        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+          <div><span className="font-medium">Make & Model:</span> {auction.make} {auction.model}</div>
+          <div><span className="font-medium">Year:</span> {auction.year}</div>
+          <div><span className="font-medium">Max Budget:</span> ${auction.max_budget.toLocaleString()}</div>
+          <div><span className="font-medium">Time Left:</span> {(() => {
+            const now = new Date();
+            const end = new Date(auction.ends_at);
+            const diff = end - now;
+            if (diff <= 0) return 'Ended';
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            return `${hours}h ${minutes}m`;
+          })()}</div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Bid Amount (USD)
+          </label>
+          <input
+            type="number"
+            required
+            min="1"
+            step="1"
+            max={auction.max_budget}
+            value={formData.price}
+            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter your bid amount"
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Must be less than the maximum budget of ${auction.max_budget.toLocaleString()}
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Message (Optional)
+          </label>
+          <textarea
+            value={formData.message}
+            onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+            rows={3}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Any additional information or comments..."
+          />
+        </div>
+
+        <div className="flex space-x-4">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Placing Bid...' : 'Place Bid'}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 
 // Admin Dashboard Component
 const AdminDashboard = ({ activeSection }) => {
