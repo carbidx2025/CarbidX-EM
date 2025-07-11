@@ -420,6 +420,9 @@ async def create_bid(bid_data: BidCreate, current_user: User = Depends(get_curre
         {"$set": {"status": BidStatus.WINNING}}
     )
     
+    # Update the bid object to reflect the winning status
+    bid.status = BidStatus.WINNING
+    
     # Broadcast bid update
     bid_dict = bid.dict()
     # Convert datetime objects to ISO format strings for JSON serialization
