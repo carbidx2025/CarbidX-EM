@@ -803,6 +803,17 @@ async def get_analytics(current_user: User = Depends(get_current_user)):
     
     top_auctions = await db.car_requests.aggregate(top_auctions_pipeline).to_list(10)
     
+    # Clean up ObjectId serialization issues
+    for auction in top_auctions:
+        if "_id" in auction:
+            auction["_id"] = str(auction["_id"])
+        if "created_at" in auction and auction["created_at"]:
+            auction["created_at"] = auction["created_at"].isoformat()
+        if "updated_at" in auction and auction["updated_at"]:
+            auction["updated_at"] = auction["updated_at"].isoformat()
+        if "ends_at" in auction and auction["ends_at"]:
+            auction["ends_at"] = auction["ends_at"].isoformat()
+    
     return {
         "daily_auctions": daily_auctions,
         "daily_bids": daily_bids,
