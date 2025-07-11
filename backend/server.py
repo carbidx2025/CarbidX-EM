@@ -818,6 +818,13 @@ async def get_analytics(current_user: User = Depends(get_current_user)):
             auction["updated_at"] = auction["updated_at"].isoformat()
         if "ends_at" in auction and auction["ends_at"]:
             auction["ends_at"] = auction["ends_at"].isoformat()
+        # Clean up bids array
+        if "bids" in auction:
+            for bid in auction["bids"]:
+                if "_id" in bid:
+                    bid["_id"] = str(bid["_id"])
+                if "created_at" in bid and bid["created_at"]:
+                    bid["created_at"] = bid["created_at"].isoformat()
     
     return {
         "daily_auctions": daily_auctions,
