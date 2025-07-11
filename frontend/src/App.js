@@ -923,6 +923,64 @@ const BuyerDashboard = ({ activeSection }) => {
   return (
     <div className="ml-48 p-8 bg-gray-50 min-h-screen">
       {renderContent()}
+      
+      {/* Bids Modal */}
+      {showBidsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Bids for Request</h3>
+              <button 
+                onClick={() => setShowBidsModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {bidsData.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No bids yet for this request.</p>
+            ) : (
+              <div className="space-y-4">
+                {bidsData.map((bid) => (
+                  <div key={bid.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{bid.dealer_name}</h4>
+                        <p className="text-sm text-gray-600">Tier: {bid.dealer_tier}</p>
+                        {bid.message && <p className="text-sm text-gray-600 mt-2">{bid.message}</p>}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-blue-600">{formatCurrency(bid.price)}</div>
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          bid.status === 'winning' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {bid.status}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">{formatDate(bid.created_at)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Create Request Form Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <CreateRequestForm 
+              onSubmit={handleCreateRequest} 
+              onCancel={() => setShowCreateForm(false)} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
