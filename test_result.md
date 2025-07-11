@@ -312,13 +312,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Landing Page Enhancement"
-    - "Full Application Testing"
-  stuck_tasks: []
-  test_all: true
+    - "Frontend Integration Issues"
+  stuck_tasks:
+    - "Frontend Integration Issues"
+  test_all: false
   test_priority: "high_first"
   backend_tested: true
-  frontend_tested: true
+  frontend_tested: false
 
 agent_communication:
   - agent: "main"
