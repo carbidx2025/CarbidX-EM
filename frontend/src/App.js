@@ -987,10 +987,79 @@ const BuyerDashboard = ({ activeSection }) => {
 
 // Dealer Dashboard Component
 const DealerDashboard = ({ activeSection }) => {
-  const myAuctions = [
-    { id: 1, title: 'Mercedes-Benz C-Class AMG', myBid: 48500, currentBid: 49000, status: 'Outbid', timeLeft: '2h 50m' },
-    { id: 2, title: 'BMW X5 M Competition', myBid: 87500, currentBid: 87500, status: 'Winning', timeLeft: '4h 50m' },
-  ];
+  const [myBids, setMyBids] = useState([]);
+  const [availableAuctions, setAvailableAuctions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showBidModal, setShowBidModal] = useState(false);
+  const [selectedAuction, setSelectedAuction] = useState(null);
+
+  useEffect(() => {
+    fetchDealerData();
+  }, [activeSection]);
+
+  const fetchDealerData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (activeSection === 'my-bids' || activeSection === 'dashboard') {
+        const bidsRes = await axios.get(`${API}/my-bids`);
+        setMyBids(bidsRes.data);
+      }
+      
+      if (activeSection === 'my-auctions' || activeSection === 'dashboard') {
+        const auctionsRes = await axios.get(`${API}/car-requests`);
+        setAvailableAuctions(auctionsRes.data.filter(auction => auction.status === 'active'));
+      }
+    } catch (error) {
+      console.error('Error fetching dealer data:', error);
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePlaceBid = async (bidData) => {
+    try {
+      await axios.post(`${API}/bids`, bidData);
+      setShowBidModal(false);
+      fetchDealerData();
+    } catch (error) {
+      console.error('Error placing bid:', error);
+      setError(error.response?.data?.detail || 'Failed to place bid. Please try again.');
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  };
+
+  const calculateTimeLeft = (endTime) => {
+    const now = new Date();
+    const end = new Date(endTime);
+    const diff = end - now;
+    
+    if (diff <= 0) return 'Ended';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${hours}h ${minutes}m`;
+  };
+
+  const getMyStats = () => {
+    const activeBids = myBids.filter(bid => bid.status === 'winning' || bid.status === 'active').length;
+    const winningBids = myBids.filter(bid => bid.status === 'winning').length;
+    const totalBids = myBids.length;
+    const lostBids = myBids.filter(bid => bid.status === 'lost').length;
+    
+    return { activeBids, winningBids, totalBids, lostBids };
+  };
 
   const renderContent = () => {
     switch (activeSection) {
