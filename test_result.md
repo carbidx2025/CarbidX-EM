@@ -303,7 +303,7 @@ test_plan:
   test_all: true
   test_priority: "high_first"
   backend_tested: true
-  frontend_tested: false
+  frontend_tested: true
 
 agent_communication:
   - agent: "main"
