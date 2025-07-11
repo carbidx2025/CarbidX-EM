@@ -605,16 +605,85 @@ const Sidebar = ({ user, logout, activeSection, setActiveSection }) => {
 
 // Buyer Dashboard Component
 const BuyerDashboard = ({ activeSection }) => {
-  const sampleRequests = [
-    { id: 1, title: 'BMW X5 2023', status: 'Active', bids: 12, endTime: '2h 30m', maxBudget: 80000 },
-    { id: 2, title: 'Mercedes C-Class 2022', status: 'Closed', bids: 8, endTime: 'Ended', maxBudget: 50000 },
-  ];
+  const [myRequests, setMyRequests] = useState([]);
+  const [liveAuctions, setLiveAuctions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showBidsModal, setShowBidsModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [bidsData, setBidsData] = useState([]);
 
-  const liveAuctions = [
-    { id: 1, title: 'Mercedes-Benz C-Class AMG', currentBid: 49000, timeLeft: '2h 50m', bids: 15 },
-    { id: 2, title: 'BMW X5 M Competition', currentBid: 87500, timeLeft: '4h 50m', bids: 28 },
-    { id: 3, title: 'Audi A4 Quattro', currentBid: 60000, timeLeft: '7h 50m', bids: 22 },
-  ];
+  useEffect(() => {
+    fetchBuyerData();
+  }, [activeSection]);
+
+  const fetchBuyerData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (activeSection === 'my-requests' || activeSection === 'dashboard') {
+        const requestsRes = await axios.get(`${API}/car-requests`);
+        setMyRequests(requestsRes.data);
+      }
+      
+      if (activeSection === 'live-auctions' || activeSection === 'dashboard') {
+        // For live auctions, we'll fetch all active requests from all users
+        const allRequestsRes = await axios.get(`${API}/car-requests`);
+        setLiveAuctions(allRequestsRes.data.filter(req => req.status === 'active'));
+      }
+    } catch (error) {
+      console.error('Error fetching buyer data:', error);
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateRequest = async (formData) => {
+    try {
+      await axios.post(`${API}/car-requests`, formData);
+      setShowCreateForm(false);
+      fetchBuyerData();
+    } catch (error) {
+      console.error('Error creating request:', error);
+      setError('Failed to create request. Please try again.');
+    }
+  };
+
+  const handleViewBids = async (requestId) => {
+    try {
+      const response = await axios.get(`${API}/bids/${requestId}`);
+      setBidsData(response.data);
+      setSelectedRequest(requestId);
+      setShowBidsModal(true);
+    } catch (error) {
+      console.error('Error fetching bids:', error);
+      setError('Failed to load bids. Please try again.');
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  };
+
+  const calculateTimeLeft = (endTime) => {
+    const now = new Date();
+    const end = new Date(endTime);
+    const diff = end - now;
+    
+    if (diff <= 0) return 'Ended';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${hours}h ${minutes}m`;
+  };
 
   const renderContent = () => {
     switch (activeSection) {
