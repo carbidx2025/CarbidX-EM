@@ -289,20 +289,20 @@ frontend:
         agent: "testing"
         comment: "COMPREHENSIVE TESTING COMPLETED: ✅ Landing page displays exactly 6 diverse vehicles (Mercedes-Benz C-Class AMG, BMW X5 M Competition, Audi A4 Quattro, Porsche 911 Turbo S, Ford F-150 Raptor, Cadillac Escalade ESV). ✅ Header correctly shows 'Live Auctions (6 vehicles)'. ✅ All vehicle cards display proper details including current bids, starting prices, bid counts, time remaining, and professional styling. ✅ 'Get Started' and 'Sign In' buttons navigate correctly to login page. Landing page enhancement is fully functional and meets all requirements."
 
-  - task: "Full Application Testing"
-    implemented: true
-    working: true
+  - task: "Frontend Integration Issues"
+    implemented: false
+    working: false
     file: "/app/frontend/src/App.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
-      - working: true
+      - working: false
         agent: "main"
-        comment: "Complete application ready for comprehensive testing of all user flows and functionality"
-      - working: true
-        agent: "testing"
-        comment: "COMPREHENSIVE FRONTEND TESTING COMPLETED: ✅ All three authentication methods work perfectly (manual login and quick login buttons for buyer/dealer/admin). ✅ Role-based dashboards display correctly with appropriate branding colors (Buyer: green, Dealer: blue, Admin: red). ✅ Each role has correct navigation menus and stats displays. ✅ Cross-role navigation works properly. ✅ Logout functionality returns users to landing page correctly. ✅ All UI components render professionally. ✅ Application meets all specified requirements from the review request. CarBidX is fully functional and ready for production use."
+        comment: "User reported that features inside the site after login are not working properly. Frontend is not properly integrating with backend APIs. Backend APIs are fully functional, but frontend components are not calling them correctly or displaying static/mock data instead of real data."
+      - working: false
+        agent: "main"  
+        comment: "Started fixing frontend integration by updating BuyerDashboard and DealerDashboard components to properly connect to backend APIs. Added state management, API calls, modals, and forms. However, there are still some syntax errors and incomplete integrations that need to be resolved."
 
 metadata:
   created_by: "main_agent"
