@@ -421,10 +421,15 @@ async def create_bid(bid_data: BidCreate, current_user: User = Depends(get_curre
     )
     
     # Broadcast bid update
+    bid_dict = bid.dict()
+    # Convert datetime objects to ISO format strings for JSON serialization
+    if "created_at" in bid_dict and bid_dict["created_at"]:
+        bid_dict["created_at"] = bid_dict["created_at"].isoformat()
+    
     await manager.broadcast_to_auction(
         json.dumps({
             "type": "new_bid",
-            "bid": bid.dict(),
+            "bid": bid_dict,
             "auction_id": bid_data.auction_id
         }),
         bid_data.auction_id
