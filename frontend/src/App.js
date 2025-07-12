@@ -986,7 +986,7 @@ const BuyerDashboard = ({ activeSection }) => {
 };
 
 // Dealer Dashboard Component
-const DealerDashboard = ({ activeSection }) => {
+const DealerDashboard = ({ activeSection, setActiveSection }) => {
   const [myBids, setMyBids] = useState([]);
   const [availableAuctions, setAvailableAuctions] = useState([]);
   const [loading, setLoading] = useState(false);
