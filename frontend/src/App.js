@@ -1981,7 +1981,7 @@ const Dashboard = () => {
       case 'buyer':
         return <BuyerDashboard activeSection={activeSection} />;
       case 'dealer':
-        return <DealerDashboard activeSection={activeSection} />;
+        return <DealerDashboard activeSection={activeSection} setActiveSection={setActiveSection} />;
       case 'admin':
         return <AdminDashboard activeSection={activeSection} />;
       default:
