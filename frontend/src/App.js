@@ -906,7 +906,17 @@ const BuyerDashboard = ({ activeSection }) => {
         );
 
       case 'create-request':
-        return <CreateRequestForm onSubmit={handleCreateRequest} onCancel={() => setShowCreateForm(false)} />;
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Create Car Request</h2>
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <CreateRequestForm 
+                onSubmit={handleCreateRequest} 
+                onCancel={() => window.history.back()} 
+              />
+            </div>
+          </div>
+        );
 
       case 'settings':
         return <UserSettings />;
