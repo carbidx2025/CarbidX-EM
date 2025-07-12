@@ -918,6 +918,17 @@ const BuyerDashboard = ({ activeSection }) => {
           </div>
         );
 
+      case 'favorites':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Favorites</h2>
+            <div className="text-center py-12">
+              <Heart className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Your favorite auctions will appear here.</p>
+            </div>
+          </div>
+        );
+
       case 'settings':
         return <UserSettings />;
 
